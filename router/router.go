@@ -1,7 +1,9 @@
 package router
 
 import (
+	"log"
 	"net/http"
+	"strconv"
 )
 
 // 初始化方法，注册全局处理器，类似于 java 中的 DispatcherServlet 的作用
@@ -29,4 +31,13 @@ func Delete(path string, handle Controller) {
 // AddFilter 添加请求过滤器
 func AddFilter(filter Filter) {
 	filterList = append(filterList, filter)
+}
+
+func Start(port int) {
+	log.Printf("http server start successful, port %d\n", port)
+	err := http.ListenAndServe(":"+strconv.Itoa(port), nil)
+	if err != nil {
+		log.Println(err)
+		return
+	}
 }

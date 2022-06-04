@@ -39,11 +39,7 @@ func routerHandle(write http.ResponseWriter, request *http.Request) {
 	}
 
 	// 执行 controller 方法
-	data, err := u(request)
-	if err != nil {
-		ResponseBadRequest(write, err.Error())
-		return
-	}
+	data := u(request)
 	responseOk(write, data)
 }
 
