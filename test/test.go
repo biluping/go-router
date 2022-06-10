@@ -7,7 +7,7 @@ import (
 
 func main() {
 	router.Get("/hello", func(request *http.Request) interface{} {
-		return "helo"
+		return "hello"
 	})
 	router.Start(8080)
 }
