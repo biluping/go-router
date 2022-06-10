@@ -16,9 +16,9 @@ func routerHandle(write http.ResponseWriter, request *http.Request) {
 	// 全局异常处理
 	defer func() {
 		err := recover()
-		log.Println(err)
 		switch err.(type) {
 		case runtime.Error:
+			log.Println(err)
 			ResponseBadRequest(write, err.(error).Error())
 		}
 	}()
