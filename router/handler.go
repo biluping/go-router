@@ -20,8 +20,6 @@ func routerHandle(write http.ResponseWriter, request *http.Request) {
 		switch err.(type) {
 		case runtime.Error:
 			ResponseBadRequest(write, err.(error).Error())
-		default:
-			ResponseBadRequest(write, "")
 		}
 	}()
 
@@ -33,7 +31,7 @@ func routerHandle(write http.ResponseWriter, request *http.Request) {
 	}
 
 	// 寻找请求路径对于的 controller 函数
-	u, exist := m[request.RequestURI]
+	u, exist := m[request.URL.Path]
 	if !exist {
 		responseNotFound(write)
 		return
