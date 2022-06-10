@@ -6,11 +6,6 @@ import (
 	"strconv"
 )
 
-// 初始化方法，注册全局处理器，类似于 java 中的 DispatcherServlet 的作用
-func init() {
-	http.HandleFunc("/", routerHandle)
-}
-
 // Get 添加 Get 方法处理器
 func Get(path string, handle Controller) {
 	register(http.MethodGet, path, handle)

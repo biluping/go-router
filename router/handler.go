@@ -3,15 +3,24 @@ package router
 import (
 	"log"
 	"net/http"
+	"runtime"
 )
+
+// 初始化方法，注册全局处理器，类似于 java 中的 DispatcherServlet 的作用
+func init() {
+	http.HandleFunc("/", routerHandle)
+}
 
 // 全局路由处理器，用于匹配请求方法、请求路径和处理函数
 func routerHandle(write http.ResponseWriter, request *http.Request) {
 	// 全局异常处理
 	defer func() {
 		err := recover()
-		if err != nil {
-			log.Println(err)
+		log.Println(err)
+		switch err.(type) {
+		case runtime.Error:
+			ResponseBadRequest(write, err.(error).Error())
+		default:
 			ResponseBadRequest(write, "")
 		}
 	}()
