@@ -1,8 +1,11 @@
 package router
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"reflect"
 	"runtime"
 )
 
@@ -20,6 +23,8 @@ func routerHandle(write http.ResponseWriter, request *http.Request) {
 		case runtime.Error:
 			log.Println(err)
 			ResponseBadRequest(write, err.(error).Error())
+		default:
+			log.Println(err)
 		}
 	}()
 
@@ -46,12 +51,69 @@ func routerHandle(write http.ResponseWriter, request *http.Request) {
 	}
 
 	// 执行 controller 方法
-	data := u(request)
+	data := invokeFunc(u, request)
 	responseOk(write, data)
+}
+
+func invokeFunc(u Controller, request *http.Request) interface{} {
+	// map[string][]string
+	query := request.URL.Query()
+	// 转换，只取第一个参数
+	queryMap := make(map[string]string)
+	for k, v := range query {
+		queryMap[k] = v[0]
+	}
+
+	// 读取请求体
+	body, err := ioutil.ReadAll(request.Body)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	// 将 query 参数转成 json，后面通过反序列号的方式将值设置到接受对象中
+	queryJson, err := json.Marshal(queryMap)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	// 反射获取处理函数的参数类型，并生产对应的值，调用函数
+	v := reflect.TypeOf(u)
+	var parameters []reflect.Value
+	for i := 0; i < v.NumIn(); i++ {
+		in := v.In(i)
+
+		if in.String() == "*http.Request" {
+			parameters = append(parameters, reflect.ValueOf(request))
+		} else {
+			if in.Kind() == reflect.Pointer {
+				// 如果参数是指针类型，需要调用 Elem 方法获取真实类型
+				in = in.Elem()
+			}
+			value := reflect.New(in)
+			err = json.Unmarshal(body, value.Interface())
+			if err != nil {
+				log.Panic(err)
+			}
+			err := json.Unmarshal(queryJson, value.Interface())
+			if err != nil {
+				log.Panic(err)
+			}
+			parameters = append(parameters, value)
+		}
+	}
+
+	of := reflect.ValueOf(u)
+	res := of.Call(parameters)
+	return res[0].Interface()
+
 }
 
 // 通用 controller 注册函数，仅限内部使用
 func register(method string, path string, handle Controller) {
+	of := reflect.TypeOf(handle)
+	if of.Kind() != reflect.Func {
+		log.Panicf("controller注册的必须是函数")
+	}
 	if _, ok := routerMap[method]; !ok {
 		routerMap[method] = make(map[string]Controller)
 	}
