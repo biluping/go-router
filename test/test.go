@@ -2,12 +2,14 @@ package main
 
 import (
 	"github.com/biluping/go-router/router"
-	"net/http"
 )
 
+type User struct {
+	Name string
+	Age  string
+}
+
 func main() {
-	router.Get("/hello", func(request *http.Request) interface{} {
-		return "hello"
-	})
+	router.Post("/hello", "aaa")
 	router.Start(8080)
 }
