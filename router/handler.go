@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http"
 	"reflect"
-	"runtime"
+	"strings"
 )
 
 // 初始化方法，注册全局处理器，类似于 java 中的 DispatcherServlet 的作用
@@ -22,12 +22,14 @@ func routerHandle(write http.ResponseWriter, request *http.Request) {
 		if err == nil {
 			return
 		}
+		log.Println(err)
 		switch err.(type) {
-		case runtime.Error:
-			log.Println(err)
+		case error:
 			ResponseBadRequest(write, err.(error).Error())
+		case string:
+			ResponseBadRequest(write, err.(string))
 		default:
-			log.Println(err)
+
 		}
 	}()
 
@@ -73,7 +75,7 @@ func invokeFunc(u Controller, request *http.Request) interface{} {
 		log.Panic(err)
 	}
 
-	// 将 query 参数转成 json，后面通过反序列号的方式将值设置到接受对象中
+	// 将 query 参数转成 json，后面通过反序列化的方式将值设置到接受对象中
 	queryJson, err := json.Marshal(queryMap)
 	if err != nil {
 		log.Panic(err)
@@ -93,10 +95,15 @@ func invokeFunc(u Controller, request *http.Request) interface{} {
 				in = in.Elem()
 			}
 			value := reflect.New(in)
-			err = json.Unmarshal(body, value.Interface())
-			if err != nil {
-				log.Panic(err)
+
+			// 反序列化请求体
+			if len(body) > 0 {
+				err = json.Unmarshal(body, value.Interface())
+				if err != nil {
+					log.Panic(err)
+				}
 			}
+
 			err := json.Unmarshal(queryJson, value.Interface())
 			if err != nil {
 				log.Panic(err)
@@ -105,10 +112,60 @@ func invokeFunc(u Controller, request *http.Request) interface{} {
 		}
 	}
 
+	valid(&parameters)
+
 	of := reflect.ValueOf(u)
 	res := of.Call(parameters)
 	return res[0].Interface()
 
+}
+
+// 参数校验
+func valid(parameters *[]reflect.Value) {
+	for _, v := range *parameters {
+		t := reflect.TypeOf(v.Interface())
+
+		// 如果是 request 类型，不进行参数校验
+		if t.String() == "*http.Request" {
+			continue
+		}
+		if t.Kind() == reflect.Pointer {
+			t = t.Elem()
+			v = v.Elem()
+		}
+
+		// 如果不是结构体，则不进行参数校验
+		if t.Kind() != reflect.Struct {
+			return
+		}
+
+		for i := 0; i < t.NumField(); i++ {
+			field := t.Field(i)
+			value := v.Field(i)
+
+			// 取结构体字段上标注 valid 的 tag
+			valid := field.Tag.Get("valid")
+			if valid == "" {
+				continue
+			}
+
+			// 根据,分割，因为可能有多种类型限制，例如 not nil,len:3
+			blocks := strings.Split(valid, ",")
+			for _, block := range blocks {
+				split := strings.Split(block, ":")
+				if len(split) == 2 {
+					if handler, ok := validMap[split[0]]; ok {
+						handler(field, value, split[1])
+					}
+				} else if len(split) == 1 {
+					if handler, ok := validMap[split[0]]; ok {
+						handler(field, value, "")
+					}
+				}
+			}
+		}
+
+	}
 }
 
 // 通用 controller 注册函数，仅限内部使用

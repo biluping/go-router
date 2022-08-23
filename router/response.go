@@ -38,6 +38,13 @@ func responseNotFound(write http.ResponseWriter) {
 	response(write, http.StatusNotFound, http.StatusText(http.StatusNotFound), nil)
 }
 
+func ResponseUnauthorized(write http.ResponseWriter, msg string) {
+	if msg == "" {
+		msg = http.StatusText(http.StatusUnauthorized)
+	}
+	response(write, http.StatusUnauthorized, msg, nil)
+}
+
 func ResponseBadRequest(write http.ResponseWriter, msg string) {
 	if msg == "" {
 		msg = http.StatusText(http.StatusBadRequest)
